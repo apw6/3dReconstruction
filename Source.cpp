@@ -12,7 +12,7 @@ using namespace xfeatures2d;
 
 int main() {
     //setup video cap and get first frame
-    auto cap = cv::VideoCapture("test2.mp4");
+    auto cap = cv::VideoCapture("test3.mp4");
     vector<Mat> frameStore;
     Mat frame1, frame2, frame1Grey, frame2Grey;
     cap >> frame1;
@@ -49,7 +49,7 @@ int main() {
        exit(EXIT_SUCCESS);
     }
     
-    while (frameNum < 5) {
+    while (frameNum < 30) {
         frame1 = frame2.clone();
         frame1 = originalFrame;
         cap >> frame2;
@@ -110,9 +110,9 @@ int main() {
 //    imshow("Tracked Points", opticalFlowEx);
     
     Mat cameraInstrinsics;
-    cameraInstrinsics = Mat(Matx33d( 712, 0, 747,
-                                 0, 712, 440,
-                                 0, 0,  1));
+    cameraInstrinsics = Matx33d( 1230, 0, 960,
+                                 0, 1230, 540,
+                                 0, 0,  1);
     cameraInstrinsics.empty();
     
     vector<Mat> points3D;
@@ -158,13 +158,13 @@ int main() {
         outFile.close();
         
         //images
-        sprintf(strBuff, "root/visualtize/%04d.jpg", idx);
+        sprintf(strBuff, "root/visualize/%04d.jpg", idx);
         imwrite(strBuff, frameStore[idx]);
     }
     
     //write option file for pmvs2
     ofstream optionfile("root/options.txt");
-    optionfile << "timages  -1 " << 0 << " " << projections.size()-1 << endl;;
+    optionfile << "timages  -1 " << 0 << " " << projections.size() << endl;;
     optionfile << "oimages 0" << endl;
     optionfile << "level 1" << endl;
 
