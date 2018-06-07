@@ -2,6 +2,9 @@
 #include <opencv2/opencv.hpp>
 #include "opencv2/xfeatures2d.hpp"
 #include <opencv2/sfm.hpp>
+#include <fstream>
+#include <iostream>
+#include <vector>
 
 using namespace std;
 using namespace cv;
@@ -10,8 +13,10 @@ using namespace xfeatures2d;
 int main() {
     //setup video cap and get first frame
     auto cap = cv::VideoCapture("test2.mp4");
+    vector<Mat> frameStore;
     Mat frame1, frame2, frame1Grey, frame2Grey;
     cap >> frame1;
+    frameStore.push_back(frame1.clone());
     frame2 = frame1;
     auto originalFrame = frame1.clone();
     auto frameNum = cap.get(CV_CAP_PROP_POS_FRAMES);
@@ -44,10 +49,11 @@ int main() {
        exit(EXIT_SUCCESS);
     }
     
-    while (frameNum < 50) {
+    while (frameNum < 5) {
         frame1 = frame2.clone();
         frame1 = originalFrame;
         cap >> frame2;
+        frameStore.push_back(frame2.clone());
         frameNum = cap.get(CV_CAP_PROP_POS_FRAMES);
         
 //        //sharpen frame
@@ -109,7 +115,7 @@ int main() {
                                  0, 0,  1));
     cameraInstrinsics.empty();
     
-    Mat points3D;
+    vector<Mat> points3D;
     vector<Mat> projections;
     vector<Mat> points2D;
     
@@ -127,7 +133,43 @@ int main() {
 //    exit(0);
     
     sfm::reconstruct(points2D, projections, points3D, cameraInstrinsics, true);
+    
+    //write out projection mats and images for pmvs2
+    system("mkdir -p root/visualtize/");
+    system("mkdir -p root/txt/");
+    system("mkdir -p root/models/");
+    
+    char strBuff[256];
+    int idx = 0;
+    
+    for (auto itr = projections.begin(); itr != projections.end(); itr++, idx++){
+        
+        //projection
+        ofstream outFile;
+        sprintf(strBuff, "root/txt/%04d.txt", idx);
+        outFile.open(strBuff);
+        outFile << "CONTOUR" << endl;
+        for (int row = 0; row < itr->rows; row++){
+            for (int col = 0; col < itr->cols; col++){
+                outFile << itr->at<double>(row, col) << " ";
+            }
+            outFile << endl;
+        }
+        outFile.close();
+        
+        //images
+        sprintf(strBuff, "root/visualtize/%04d.jpg", idx);
+        imwrite(strBuff, frameStore[idx]);
+    }
+    
+    //write option file for pmvs2
+    ofstream optionfile("root/options.txt");
+    optionfile << "timages  -1 " << 0 << " " << projections.size()-1 << endl;;
+    optionfile << "oimages 0" << endl;
+    optionfile << "level 1" << endl;
 
+
+    //write out tracks
     const int windowsSize = 10;
 
     for (int window = 0; window < trackedPoints.size() / windowsSize; window++) {
@@ -165,14 +207,16 @@ int main() {
         }
         
     }
-
+    
+    ofstream tracksFile("tracks.txt");
     //Print out the tracks
     for (int i = 0; i < trackedCorners.size(); i++) {
         for (int k = 0; k < trackedPoints.size(); k++) {
             Point2d point = trackedPoints[k][i];
-            cout << point.x << " " << point.y << " ";
+            tracksFile << point.x << " " << point.y << " ";
         }
-        cout << "\n";
+        tracksFile << "\n";
     }
-    waitKey(5 * 60 * 1000);
+    tracksFile.close();
+    cout << "Done" << endl;
 }
