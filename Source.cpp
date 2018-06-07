@@ -110,10 +110,9 @@ int main() {
 //    imshow("Tracked Points", opticalFlowEx);
     
     Mat cameraInstrinsics;
-    cameraInstrinsics = Matx33d( 1230, 0, 960,
+    cameraInstrinsics = Mat(Matx33d( 1230, 0, 960,
                                  0, 1230, 540,
-                                 0, 0,  1);
-    cameraInstrinsics.empty();
+                                 0, 0,  1));
     
     vector<Mat> points3D;
     vector<Mat> projections;
