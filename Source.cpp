@@ -135,7 +135,7 @@ int main() {
     sfm::reconstruct(points2D, projections, points3D, cameraInstrinsics, true);
     
     //write out projection mats and images for pmvs2
-    system("mkdir -p root/visualtize/");
+    system("mkdir -p root/visualize/");
     system("mkdir -p root/txt/");
     system("mkdir -p root/models/");
     
