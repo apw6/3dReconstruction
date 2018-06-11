@@ -1,4 +1,9 @@
+#define OPTICAL_FLOW 0  
+#define ORIGINAL_TRACKED 0
+#define KLT_TRACK 0
+#define SHOW_SIFT 0
 #define CERES_FOUND 1 //need this to make sfm module happy
+
 #include <opencv2/opencv.hpp>
 #include "opencv2/xfeatures2d.hpp"
 #include <opencv2/sfm.hpp>
@@ -48,6 +53,7 @@ int main() {
     cornerSubPix(currentFrameGrey, trackedCorners, subPixWinSize, Size(-1,-1), termcrit);
     trackedPoints.push_back(trackedCorners);
     
+    #if OPTICAL_FLOW || ORIGINAL_TRACKED || KLT_TRACK
     //Display of optial flow from first image
     Mat opticalFlowEx = currentFrame.clone();
     for(auto itr = trackedCorners.begin(); itr < trackedCorners.end(); itr++){
@@ -55,10 +61,13 @@ int main() {
     }
     imshow("Tracked Points", opticalFlowEx);
     waitKey(50000);
+    #endif
     
+    #if SHOW_SIFT
     //Sift
     auto siftDetector = SIFT::create();
     vector<KeyPoint> siftFeatures;
+    #endif
     
     if(trackedCorners.size() < minTrackedPoints) {
        printf("Too few features detected");
@@ -89,24 +98,36 @@ int main() {
                 (trackedCorners)[i] = Point2f(-1, -1);
             }
             else {
+                #if OPTICAL_FLOW
                 circle(opticalFlowEx,  (trackedCorners)[i], 1, CV_RGB(0,0,200), 1);
+                #endif
+                #if KLT_TRACK
                 circle(currentFrameKLT, (trackedCorners)[i], 1, CV_RGB(200,0,200), 5);
+                #endif
             }
         }
         trackedPoints.push_back(trackedCorners);
         
-//        //show sift features to compare
-//        Mat currentFrameSIFT = currentFrame.clone();
-//        siftDetector->detect(currentFrameSIFT, siftFeatures);
-//        drawKeypoints(currentFrameSIFT, siftFeatures, currentFrameSIFT);
-//        imshow("New Frame SIFT", currentFrameSIFT);
+        #if SHOW_SIFT
+        //show sift features to compare
+        Mat currentFrameSIFT = currentFrame.clone();
+        siftDetector->detect(currentFrameSIFT, siftFeatures);
+        drawKeypoints(currentFrameSIFT, siftFeatures, currentFrameSIFT);
+        imshow("New Frame SIFT", currentFrameSIFT);
+        #endif
         
+        #if KLT_TRACK
         imshow("New Frame Tracked", currentFrameKLT);
+        #endif
         
+        #if KLT_TRACK || SHOW_SIFT
         waitKey(500);
+        #endif
     }
     
-//    imshow("Tracked Points", opticalFlowEx);
+    #if OPTICAL_FLOW
+    imshow("Tracked Points", opticalFlowEx);
+    #endif
     
     Mat cameraInstrinsics;
     cameraInstrinsics = Mat(Matx33d( 1230, 0, 960,
@@ -125,11 +146,7 @@ int main() {
         }
         points2D.push_back(Mat(cur2DPoints).clone());
     }
-    
-//    //debuging input types
-//    printf("%d\n",_InputArray(projections).kind()>>16);
-//    exit(0);
-    
+
     
     cout << "Begin reconstruction" << endl;
     sfm::reconstruct(points2D, projections, points3D, cameraInstrinsics, true);
@@ -208,45 +225,3 @@ void writeTracks(const vector<vector<Point2f>> & trackedPoints){
     tracksFile.close();
 }
 
-
-vector<vector<Point2f>> * getHighQualityPoints(const int windowsSize, const vector<vector<Point2f>> & trackedPoints){
-    
-    vector<vector<Point2f>> * highQualityPoints = new vector<vector<Point2f>>();
-     
-    for (int window = 0; window < trackedPoints.size() / windowsSize; window++) {
-        
-        //Setup initial points
-        int frameIdx = window * windowsSize;
-        vector<int> highQualityPointsIdx;
-        for (int i = 0; i < trackedPoints[0].size(); i++) {
-            if (trackedPoints[frameIdx][i].x != -1) {
-                highQualityPointsIdx.push_back(i);
-            }
-        }
-        
-        //remove all points that aren't tracked throughout the window
-        frameIdx++;
-        for (; frameIdx < (window + 1) * windowsSize; frameIdx++) {
-            for (auto itr = highQualityPointsIdx.begin(); itr != highQualityPointsIdx.end();) {
-                if (trackedPoints[frameIdx][*itr].x == -1) {
-                    itr = highQualityPointsIdx.erase(itr);
-                }
-                else {
-                    itr++;
-                }
-            }
-        }
-
-        //pick some frames in the window and get set of "high quality" points from those frames
-       
-        for (frameIdx = window * windowsSize; frameIdx < (window + 1) * windowsSize;frameIdx+=(windowsSize/2-1) ) {
-            vector<Point2f > points;
-            for (auto itr = highQualityPointsIdx.begin(); itr != highQualityPointsIdx.end(); itr++) {
-                points.push_back(trackedPoints[frameIdx][*itr]);
-            }
-            highQualityPoints->push_back(points);
-        }
-        
-    }
-    return highQualityPoints;
-}
