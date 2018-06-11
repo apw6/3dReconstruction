@@ -1,7 +1,13 @@
-#define OPTICAL_FLOW 0  
-#define ORIGINAL_TRACKED 0
-#define KLT_TRACK 0
-#define SHOW_SIFT 0
+#define OPTICAL_FLOW 0 // display first frame with tracked points and 
+                       // their position in subsequent images
+#define ORIGINAL_TRACKED 0 // display the first frame with tracked points
+#define KLT_TRACK 1 // display first frame with tracked points and show
+                    // each new frame with new location of found points
+#define SHOW_SIFT 0 // display each new frame with SIFT keypoints shown
+
+#define TRACK_FROM_ORIGINAL 0 // Track from original frame to current frame. 
+                              // Otherwise track from the previous frame 
+
 #define CERES_FOUND 1 //need this to make sfm module happy
 
 #include <opencv2/opencv.hpp>
@@ -16,7 +22,7 @@ using namespace cv;
 using namespace xfeatures2d;
 
 const int windowsSize = 10;
-const float framesToProcess = 3;
+const float framesToProcess = 10;
 const int minTrackedPoints = 10;
 
 const string videoName = "test3.mp4";
@@ -75,8 +81,13 @@ int main() {
     }
     
     while (frameNum < framesToProcess) {
-        prevFrame = currentFrame.clone();
+        
+        #if TRACK_FROM_ORIGINAL
         prevFrame = frameStore.front();
+        #else
+        prevFrame = currentFrame.clone();
+        #endif
+        
         
         cap >> currentFrame;
         frameStore.push_back(currentFrame.clone());
@@ -89,8 +100,14 @@ int main() {
         vector<uchar> status;
         vector<float> err;
         
+        #if TRACK_FROM_ORIGINAL
+        const vector<Point2f> & prevPoints = trackedPoints.front();
+        #else
+        const vector<Point2f> & prevPoints = trackedPoints.back();
+        #endif
+        
         trackedCorners = trackedPoints.back();  //use last known locations as best guess
-        calcOpticalFlowPyrLK(prevFrameGrey, currentFrameGrey, trackedPoints.front(), trackedCorners, status, err);
+        calcOpticalFlowPyrLK(prevFrameGrey, currentFrameGrey, prevPoints, trackedCorners, status, err);
 
         Mat currentFrameKLT = currentFrame.clone();
         for (int i = 0; i < status.size(); i++) {
